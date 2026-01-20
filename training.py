@@ -1,20 +1,25 @@
 from ultralytics import YOLO
-import torch # Import torch to check if GPU is available later
+import torch 
 
 if __name__ == '__main__':
-    model = YOLO('yolov8n.pt') 
+    model = YOLO("runs/detect/train3/weights/last.pt") 
 
-    # Determine device: Use CUDA if available, otherwise CPU
+    #using cuda if available, otherwise cpu
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
 
-    # Train the model
+    #train
+    # results = model.train(
+    #     data='C:/Users/neeld/SoccerNet/split/data.yaml',
+    #     epochs=100,
+    #     imgsz=416,
+    #     workers=2, 
+    #     batch=6,
+    #     device=device, 
+    #     amp = True
+    # )
     results = model.train(
-        data='C:/Users/neeld/SoccerNet/model/data.yaml',
-        epochs=50,
-        imgsz=512,
-        workers=2, 
-        batch=6, 
-        device=device, 
-        amp = True
+        resume = True,
+        device = device
     )
+
