@@ -307,7 +307,7 @@ def main():
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
     print(f"\n{'='*70}")
-    print(f"ROBUST MULTI-OBJECT TRACKING SYSTEM")
+    print(f"MULTI-OBJECT TRACKING SYSTEM")
     print(f"{'='*70}")
     print(f"Video: {input_path.name}")
     print(f"Resolution: {width}x{height}")
@@ -415,7 +415,7 @@ def main():
         # out.write(frame)
         
         # Display
-        cv2.imshow("Robust Tracking", frame)
+        cv2.imshow("Player Tracking", frame)
         
         # Progress
         if frame_count % 10 == 0:
