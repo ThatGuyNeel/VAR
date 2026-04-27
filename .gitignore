@@ -1,0 +1,4 @@
+models/
+*.pt
+*.mp4
+*.zip
