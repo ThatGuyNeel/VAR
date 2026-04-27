@@ -1,5 +1,7 @@
 model/
 *.pt
+*.pth
+*.pth.tar
 *.mp4
 *.zip
-*.tar 
+*.tar
