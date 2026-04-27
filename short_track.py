@@ -409,7 +409,11 @@ def main():
         # out.write(frame)
         t5 = time.time()
         # Display
+<<<<<<< HEAD
         # cv2.imshow("Player Tracking", frame)
+=======
+        cv2.imshow("Player Tracking", frame)
+>>>>>>> 75dc9f6f74f91eb762936be9b21b061ba89e45f8
         
         # Progress
         frame_end = time.time()
