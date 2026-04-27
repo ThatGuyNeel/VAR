@@ -1,23 +1,16 @@
-"""
-Robust Multi-Object Tracking System
-Optimized for stable tracking across short clips (4-6 seconds)
-No team assignment - pure detection and tracking focus
-"""
-
 from ultralytics import YOLO
 import cv2
 import numpy as np
 from collections import defaultdict, deque
 from pathlib import Path
 import warnings
+import time
 warnings.filterwarnings('ignore')
 
 
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
+# Configuration
 
-MODEL_PATH = "C:/Users/neeld/SoccerNet/runs/detect/train/weights/best.pt"
+MODEL_PATH = "runs/detect/train/weights/best.pt"
 VIDEO_PATH = "clips/action_8/clip_0.mp4"
 
 # Class definitions
@@ -44,8 +37,8 @@ CLASS_COLORS = {
 }
 
 # Tracking optimization parameters
-CONFIDENCE_THRESHOLD = 0.25          # Detection confidence
-IOU_THRESHOLD = 0.45                 # Lower IOU for better tracking continuity
+CONFIDENCE_THRESHOLD = 0.25          # Detection confidence 
+IOU_THRESHOLD = 0.45                 # Lower IOU for better tracking continuity 
 TRACKER_CONFIG = "bytetrack.yaml"    # ByteTrack is robust for sports
 
 # Stability features
@@ -55,15 +48,10 @@ MIN_TRACK_LENGTH = 3                 # Minimum frames to display a track
 LOST_TRACK_MEMORY = 30               # Remember lost tracks for this many frames
 
 # Quality filtering
-MIN_BBOX_AREA = 400                  # Minimum bbox area (filters noise)
+MIN_BBOX_AREA = 400                  # Minimum bbox area (filters noise) 
 MAX_BBOX_AREA = 150000               # Maximum bbox area
-MIN_ASPECT_RATIO = 1.2               # Min height/width ratio
+MIN_ASPECT_RATIO = 1.2              # Min height/width ratio 
 MAX_ASPECT_RATIO = 5.0               # Max height/width ratio
-
-
-# ============================================================================
-# TRACK STABILIZER
-# ============================================================================
 
 class TrackStabilizer:
     """Stabilizes track positions and manages track lifecycle"""
@@ -153,9 +141,7 @@ class TrackStabilizer:
             del self.lost_tracks[track_id]
 
 
-# ============================================================================
-# DETECTION QUALITY FILTER
-# ============================================================================
+# Detection Quality Filter
 
 class DetectionFilter:
     """Filter out low-quality detections"""
@@ -196,10 +182,7 @@ class DetectionFilter:
         return False
 
 
-# ============================================================================
-# VISUALIZATION
-# ============================================================================
-
+# Visualization
 class Visualizer:
     """Handle all visualization"""
     
@@ -281,13 +264,17 @@ class Visualizer:
         cv2.putText(frame, class_info, (10, 100), font, 0.5, (200, 200, 200), 1)
 
 
-# ============================================================================
-# MAIN PROCESSING
-# ============================================================================
+# Main processing
 
 def main():
     # Initialize
     model = YOLO(MODEL_PATH)
+    model.to('cuda')
+    print("Warming up model...")
+    dummy = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    for _ in range(3):
+        model.track(dummy, persist=True, verbose=False, device='cuda')
+    print("Warm-up complete.")
     cap = cv2.VideoCapture(VIDEO_PATH)
     
     if not cap.isOpened():
@@ -307,7 +294,7 @@ def main():
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
     print(f"\n{'='*70}")
-    print(f"ROBUST MULTI-OBJECT TRACKING SYSTEM")
+    print(f"MULTI-OBJECT TRACKING SYSTEM")
     print(f"{'='*70}")
     print(f"Video: {input_path.name}")
     print(f"Resolution: {width}x{height}")
@@ -326,18 +313,22 @@ def main():
     # out = cv2.VideoWriter(OUTPUT_PATH, fourcc, fps, (width, height))
     
     frame_count = 0
+    frame_latencies = [] # To calculate avg latency
+    frame_times = []  #To calculate avg fps
     active_tracks_current_frame = set()
     
     print("Processing video...")
-    
+    total_start = time.time() # Total runtime
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-        
+        # frame = cv2.resize(frame, (1280,720))
         frame_count += 1
+        frame_start = time.time() # Latency start
         active_tracks_current_frame.clear()
         
+        t1 = time.time()
         # Run tracking
         results = model.track(
             frame,
@@ -346,9 +337,11 @@ def main():
             conf=CONFIDENCE_THRESHOLD,
             iou=IOU_THRESHOLD,
             classes=[PLAYER_CLASS, GK_CLASS, REF_CLASS, STAFF_CLASS, BALL_CLASS],
-            verbose=False
+            verbose=False,
+            device = 'cuda'
         )
         
+        t2 = time.time()
         # Process detections
         for r in results:
             if r.boxes is None or r.boxes.id is None:
@@ -369,6 +362,7 @@ def main():
                 # Add to stabilizer
                 stabilizer.add_detection(track_id, bbox, confidence, class_id, frame_count)
                 active_tracks_current_frame.add(track_id)
+        t3 = time.time()
         
         # Mark lost tracks
         all_known_tracks = set(stabilizer.track_classes.keys())
@@ -410,34 +404,62 @@ def main():
             'class_counts': class_counts
         }
         visualizer.draw_stats(frame, stats, frame_count)
-        
+        t4 = time.time()
         # Write frame
         # out.write(frame)
-        
+        t5 = time.time()
         # Display
-        cv2.imshow("Robust Tracking", frame)
+        # cv2.imshow("Player Tracking", frame)
         
         # Progress
+        frame_end = time.time()
+        frame_latency_ms = (frame_end - frame_start) * 1000
+        if frame_count >3:
+            frame_latencies.append(frame_latency_ms)
+            frame_times.append(frame_end) #Cumulative for total fps
+
         if frame_count % 10 == 0:
             progress = (frame_count / total_frames) * 100
             print(f"Progress: {progress:.1f}% ({frame_count}/{total_frames})", end='\r')
+            print(f"Inference: {(t2-t1)*1000:.1f}ms | "
+                  f"Processing: {(t3-t2)*1000:.1f}ms | "
+                  f"Viz: {(t4-t3)*1000:.1f}ms | "
+                  f"Write: {(t5-t4)*1000:.1f}ms")
         
         # Exit on ESC
-        if cv2.waitKey(100) & 0xFF == 27:
+        if cv2.waitKey(1) & 0xFF == 27:
             print("\n\nStopped by user")
             break
+
+        
     
     # Cleanup
+    total_end = time.time()
+    total_runtime = total_end - total_start
+
     cap.release()
     # out.release()
     cv2.destroyAllWindows()
     
+    avg_fps = frame_count / total_runtime 
+    avg_latency = sum(frame_latencies) / len(frame_latencies)
+    min_latency = min(frame_latencies)
+    max_latency = max(frame_latencies)
+
     # Final statistics
     print(f"\n\n{'='*70}")
     print(f"TRACKING COMPLETE")
     print(f"{'='*70}")
     print(f"Frames Processed: {frame_count}/{total_frames}")
     print(f"Total Unique Tracks: {len(stabilizer.track_classes)}")
+    print(f"Total Runtime:   {total_runtime:.2f} s")
+    print(f"Avg FPS:         {avg_fps:.2f}")
+    print(f"Avg Latency:     {avg_latency:.1f} ms/frame")
+    print(f"Median Latency:    {np.median(frame_latencies):.1f} ms")
+    print(f"P95 Latency:       {np.percentile(frame_latencies, 95):.1f} ms")
+    print(f"Std Dev:           {np.std(frame_latencies):.1f} ms")
+    print(f"Latency Range:   {min_latency:.1f} - {max_latency:.1f} ms")
+    print(f"Real-time Ratio: {avg_fps / fps:.2f}x (vs video {fps:.1f} FPS)")
     print(f"\nTracks by Class:")
     
     class_track_counts = defaultdict(int)
@@ -448,7 +470,7 @@ def main():
         class_name = CLASS_NAMES.get(class_id, f"Class {class_id}")
         print(f"  {class_name}: {count} tracks")
     
-    print(f"\nOutput would be saved to: {OUTPUT_PATH}")
+    # print(f"\nOutput would be saved to: {OUTPUT_PATH}")
     print(f"{'='*70}\n")
 
 

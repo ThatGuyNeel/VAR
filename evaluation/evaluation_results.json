@@ -1,0 +1,14 @@
+{
+  "total_gt_detections": 11460,
+  "total_pred_detections": 7454,
+  "total_matches": 7215,
+  "total_fp": 239,
+  "total_fn": 4245,
+  "total_id_switches": 111,
+  "precision": 0.9679366782935337,
+  "recall": 0.6295811518324608,
+  "f1_score": 0.7629269324310035,
+  "MOTA": 0.5990401396160558,
+  "num_frames": 750,
+  "iou_threshold": 0.5
+}
