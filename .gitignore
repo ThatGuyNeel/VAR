@@ -1,4 +1,4 @@
-models/
+model/
 *.pt
 *.mp4
 *.zip
