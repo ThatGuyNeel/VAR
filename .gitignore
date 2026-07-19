@@ -1,0 +1,16 @@
+venv/
+*.pt
+*.pth
+*.pth.tar
+*.mp4
+*.zip
+*.tar
+Player Tracking/clips/
+Player Tracking/evaluation/
+Player Tracking/yolov8s.pt 
+Offside Detection/model/ 
+Offside Detection/test_set/
+Offside Detection/evaluate_test_set.py 
+Offside Detection/results.csv 
+Offside Detection/testrun.py 
+Foul Detection/Evaluate/
